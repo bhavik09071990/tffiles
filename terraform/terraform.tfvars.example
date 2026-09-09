@@ -1,0 +1,25 @@
+# Example terraform.tfvars - copy and customize
+resource_name_prefix = "aca"
+location = "eastus"
+environment = "dev"
+
+# Container Apps
+nextjs_app_name     = "aca-nextjs"
+dotnet_api_app_name = "aca-dotnetapi"
+nextjs_image        = "mcr.microsoft.com/samples/azure-container-apps-todo-app:latest"
+dotnet_api_image    = "mcr.microsoft.com/samples/azure-container-apps-todo-app:latest"
+
+# Scaling (scale-to-zero for dev, min_replicas=1 for prod)
+nextjs_min_replicas    = 0
+nextjs_max_replicas    = 5
+nextjs_target_concurrency = 100
+
+dotnet_api_min_replicas = 0
+dotnet_api_max_replicas = 10
+dotnet_api_target_concurrency = 50
+
+# APIM SKU (Developer_1 for internal VNet, Standard_v2 or Premium_v3 for prod)
+apim_sku_name = "Developer_1"
+
+# ACR SKU
+acr_sku = "Standard"
