@@ -25,7 +25,7 @@ variable "environment" {
 # ---------------------------------------------------------------------------
 
 variable "virtual_network_address_space" {
-  description = "Address space for the application VNet"
+  description = "Address space for the hub VNet"
   type        = string
   default     = "10.0.0.0/16"
 }
@@ -33,13 +33,19 @@ variable "virtual_network_address_space" {
 variable "container_apps_subnet_address_prefix" {
   description = "Address prefix for the Container Apps subnet"
   type        = string
-  default     = "10.0.0.0/22"
+  default     = "10.1.0.0/22"
 }
 
 variable "private_endpoint_subnet_address_prefix" {
-  description = "Address prefix for the Private Endpoint subnet"
+  description = "Address prefix for the Private Endpoint subnet in hub"
   type        = string
   default     = "10.0.4.0/26"
+}
+
+variable "spoke_private_endpoint_subnet_address_prefix" {
+  description = "Address prefix for the Private Endpoint subnet in spoke"
+  type        = string
+  default     = "10.1.4.0/26"
 }
 
 # ---------------------------------------------------------------------------
@@ -106,7 +112,7 @@ variable "nextjs_max_replicas" {
 variable "dotnet_api_min_replicas" {
   description = "Minimum replica count for .NET API Container App"
   type        = number
-  default     = 0  # scale-to-zero for dev; set to 1 for prod
+  default     = 0 # scale-to-zero for dev; set to 1 for prod
 }
 
 variable "dotnet_api_max_replicas" {
@@ -169,4 +175,14 @@ variable "tags" {
     environment = "dev"
     managed_by  = "terraform"
   }
+}
+
+# ---------------------------------------------------------------------------
+# API Management
+# ---------------------------------------------------------------------------
+
+variable "apim_sku_name" {
+  description = "SKU for API Management (Developer_1, Standard_v2, Premium_v3)"
+  type        = string
+  default     = "Developer_1"
 }

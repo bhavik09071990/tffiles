@@ -14,6 +14,11 @@ variable "location" {
   default     = "eastus"
 }
 
+variable "resource_group_name" {
+  description = "Resource group name"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags applied to all resources"
   type        = map(string)
@@ -29,26 +34,8 @@ variable "hub_address_space" {
   default     = "10.0.0.0/16"
 }
 
-variable "spoke_address_space" {
-  description = "Address space for the spoke VNet"
-  type        = string
-  default     = "10.1.0.0/16"
-}
-
-variable "container_apps_subnet_address_prefix" {
-  description = "Address prefix for the Container Apps subnet"
-  type        = string
-  default     = "10.1.0.0/22"
-}
-
 variable "private_endpoint_subnet_address_prefix" {
   description = "Address prefix for the Private Endpoint subnet in hub"
   type        = string
   default     = "10.0.4.0/26"
-}
-
-variable "spoke_private_endpoint_subnet_address_prefix" {
-  description = "Address prefix for the Private Endpoint subnet in spoke"
-  type        = string
-  default     = "10.1.4.0/26"
 }

@@ -11,7 +11,7 @@ module "application_insights" {
   resource_group_name = var.resource_group_name
   location            = var.location
 
-  workspace_id = var.log_analytics_workspace_id
+  workspace_id = module.log_analytics_workspace.resource_id
 
   application_type = "web"
 
@@ -31,9 +31,9 @@ module "log_analytics_workspace" {
   resource_group_name = var.resource_group_name
   location            = var.location
 
-  sku                 = "PerNode"
-  retention_in_days   = 30
-  daily_quota_mb      = 100
+  log_analytics_workspace_sku                     = "PerNode"
+  log_analytics_workspace_retention_in_days         = 30
+  log_analytics_workspace_daily_quota_gb            = 0.1
 
   tags = var.tags
 }
@@ -44,18 +44,8 @@ module "log_analytics_workspace" {
 
 resource "azurerm_monitor_diagnostic_setting" "ai_to_law" {
   name                       = "ai-diagnostic-settings"
-  target_resource_id         = module.application_insights.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-
-  log {
-    category = "Audit"
-    enabled  = true
-
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
-  }
+  target_resource_id         = module.application_insights.resource_id
+  log_analytics_workspace_id = module.log_analytics_workspace.resource_id
 
   metric {
     category = "AllMetrics"
@@ -75,11 +65,10 @@ resource "azurerm_monitor_diagnostic_setting" "ai_to_law" {
 resource "azurerm_monitor_diagnostic_setting" "aca_to_law" {
   name                       = "aca-diagnostic-settings"
   target_resource_id         = var.container_app_environment_id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
+  log_analytics_workspace_id = module.log_analytics_workspace.resource_id
 
-  log {
+  enabled_log {
     category = "ContainerAppConsoleLogs"
-    enabled  = true
 
     retention_policy {
       enabled = true
@@ -96,29 +85,4 @@ resource "azurerm_monitor_diagnostic_setting" "aca_to_law" {
       days    = 30
     }
   }
-}
-
-# ---------------------------------------------------------------------------
-# Outputs
-# ---------------------------------------------------------------------------
-
-output "application_insights_id" {
-  description = "ID of the Application Insights instance"
-  value       = module.application_insights.id
-}
-
-output "log_analytics_workspace_id" {
-  description = "ID of the Log Analytics workspace"
-  value       = module.log_analytics_workspace.id
-}
-
-output "application_insights_instrumentation_key" {
-  description = "Application Insights instrumentation key"
-  value       = module.application_insights.instrumentation_key
-  sensitive   = true
-}
-
-output "application_insights_app_id" {
-  description = "Application Insights application ID"
-  value       = module.application_insights.app_id
 }

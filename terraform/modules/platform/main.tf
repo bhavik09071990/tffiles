@@ -1,45 +1,55 @@
 # ---------------------------------------------------------------------------
-# Azure Container Apps Environment
-# Uses VNet integration with dedicated subnet per architecture decision #2.
-# Internal (no public IP) + workload profile (decision #3). The Consumption
-# workload profile requires internal_load_balancer_enabled (gotcha #2).
-# Using Azure Verified Module: Azure/avm-res-containerapp/azurerm
+# Platform Layer - ACA Environment, ACR, Key Vault, APIM
+# Hub-and-spoke topology:
+#   - ACA Environment in spoke (Container Apps subnet)
+#   - APIM in hub (Private Endpoint subnet)
+#   - ACR and Key Vault private endpoints in hub (Private Endpoint subnet)
+# ---------------------------------------------------------------------------
+
+locals {
+  name_prefix = var.name_prefix
+}
+
+# ---------------------------------------------------------------------------
+# Azure Container Apps Managed Environment
+# Workload-profile environment with internal load balancer in spoke VNet
+# Using Azure Verified Module: Azure/avm-res-app-managedenvironment/azurerm
 # ---------------------------------------------------------------------------
 
 module "container_apps_environment" {
-  source  = "Azure/avm-res-containerapp/azurerm"
-  version = "0.9.0"
+  source  = "Azure/avm-res-app-managedenvironment/azurerm"
+  version = "0.5.0"
 
-  name                          = var.container_app_environment_name
-  resource_group_name           = var.resource_group_name
-  location                      = var.location
-  log_analytics_workspace_id    = var.log_analytics_workspace_id
+  name                = var.container_app_environment_name
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  log_analytics_workspace = {
+    resource_id = var.log_analytics_workspace_id
+  }
 
-  vnet_configuration {
-    internal                     = true
-    infrastructure_subnet_id      = var.container_apps_subnet_id
-    docker_bridge_cidr            = "172.16.0.0/16"
+  vnet_configuration = {
+    internal                       = true
+    infrastructure_subnet_id       = var.container_apps_subnet_id
+    docker_bridge_cidr             = "172.16.0.0/16"
     internal_load_balancer_enabled = true
   }
 
-  dynamic "workload_profile" {
-    for_each = var.workload_profile_name == "Consumption" ? [] : [1]
+  workload_profile = var.workload_profile_name == "Consumption" ? [] : [{
+    name                  = var.workload_profile_name
+    count                 = var.workload_profile_count
+    workload_profile_type = "Dedicated"
+  }]
 
-    content {
-      name  = var.workload_profile_name
-      count = var.workload_profile_count
-    }
+  managed_identities = {
+    system_assigned            = true
+    user_assigned_resource_ids = []
   }
 
   tags = var.tags
 }
 
 # ---------------------------------------------------------------------------
-# Azure Container Registry
-# Private by default (decision #6). Public network access disabled.
-# Container Apps pull images over the Private Endpoint using Managed Identity
-# (AcrPull role). Admin user disabled per security requirements.
-# Using Azure Verified Module: Azure/avm-res-containerregistry-registry/azurerm
+# Azure Container Registry - Private by default (decision #6)
 # ---------------------------------------------------------------------------
 
 module "container_registry" {
@@ -59,12 +69,7 @@ module "container_registry" {
 }
 
 # ---------------------------------------------------------------------------
-# Azure Key Vault
-# REQUIRED per project requirements and architecture decision #6.
-# Managed Identity + RBAC for authentication (no secrets in Terraform).
-# Public network access disabled — applications use Key Vault SDK / MI auth.
-# Soft delete and purge protection enabled for data recovery.
-# Using Azure Verified Module: Azure/avm-res-keyvault-vault/azurerm
+# Azure Key Vault - REQUIRED per requirements (decision #7)
 # ---------------------------------------------------------------------------
 
 module "key_vault" {
@@ -78,13 +83,10 @@ module "key_vault" {
 
   sku_name = "standard"
 
-  soft_delete_retention_days  = 7
-  purge_protection_enabled    = false # Allow purge for dev; enable in prod
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false # Allow purge for dev; enable in prod
 
   public_network_access_enabled = false
-
-  # RBAC for secrets, keys, and certificates
-  rbac_authorization_enabled = true
 
   tags = var.tags
 }
@@ -92,12 +94,100 @@ module "key_vault" {
 data "azurerm_client_config" "current" {}
 
 # ---------------------------------------------------------------------------
+# Azure API Management - Public gateway for internal backends
+# Deployed in hub VNet (private endpoint subnet) with internal VNet type
+# ---------------------------------------------------------------------------
+
+resource "azurerm_api_management" "main" {
+  name                = var.api_management_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  publisher_name      = var.publisher_name
+  publisher_email     = var.publisher_email
+  sku_name            = var.apim_sku_name
+
+  virtual_network_type = "Internal"
+  virtual_network_configuration {
+    subnet_id = var.apim_subnet_id
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = var.tags
+}
+
+# ---------------------------------------------------------------------------
+# API: dotnet-api
+# Backend = .NET API internal FQDN. mTLS handled by the Container Apps platform.
+# ---------------------------------------------------------------------------
+
+resource "azurerm_api_management_api" "dotnet_api" {
+  name                = "dotnet-api"
+  resource_group_name = var.resource_group_name
+  api_management_name = azurerm_api_management.main.name
+  revision            = "1"
+  display_name        = ".NET API"
+  path                = "api"
+  protocols           = ["https"]
+}
+
+locals {
+  dotnet_api_backend_url = "https://${var.dotnet_api_app_name}.internal.${var.container_app_environment_fqdn}"
+}
+
+resource "azurerm_api_management_backend" "dotnet_api" {
+  name                = "dotnet-api-backend"
+  resource_group_name = var.resource_group_name
+  api_management_name = azurerm_api_management.main.name
+  url                 = local.dotnet_api_backend_url
+  protocol            = "http"
+}
+
+# ---------------------------------------------------------------------------
+# Diagnostic settings
+# ---------------------------------------------------------------------------
+
+resource "azurerm_api_management_logger" "main" {
+  name                = "apim-logger"
+  api_management_name = azurerm_api_management.main.name
+  resource_group_name = var.resource_group_name
+
+  resource_id = var.log_analytics_workspace_id
+}
+
+resource "azurerm_api_management_diagnostic" "main" {
+  identifier               = "applicationinsights"
+  api_management_name      = azurerm_api_management.main.name
+  resource_group_name      = var.resource_group_name
+  api_management_logger_id = azurerm_api_management_logger.main.id
+
+  frontend_request {
+    body_bytes     = 32
+    headers_to_log = ["content-type", "accept"]
+  }
+  frontend_response {
+    body_bytes     = 32
+    headers_to_log = ["content-type"]
+  }
+  backend_request {
+    body_bytes     = 32
+    headers_to_log = ["content-type"]
+  }
+  backend_response {
+    body_bytes     = 32
+    headers_to_log = ["content-type"]
+  }
+}
+
+# ---------------------------------------------------------------------------
 # Outputs
 # ---------------------------------------------------------------------------
 
 output "container_apps_environment_id" {
   description = "ID of the Container Apps Environment"
-  value       = module.container_apps_environment.id
+  value       = module.container_apps_environment.resource_id
 }
 
 output "container_apps_environment_fqdn" {
@@ -107,7 +197,7 @@ output "container_apps_environment_fqdn" {
 
 output "container_registry_id" {
   description = "ID of the Azure Container Registry"
-  value       = module.container_registry.id
+  value       = module.container_registry.resource_id
 }
 
 output "container_registry_login_server" {
@@ -117,7 +207,7 @@ output "container_registry_login_server" {
 
 output "key_vault_id" {
   description = "ID of the Azure Key Vault"
-  value       = module.key_vault.id
+  value       = module.key_vault.resource_id
 }
 
 output "key_vault_name" {
@@ -137,5 +227,5 @@ output "api_management_name" {
 
 output "api_management_hostname" {
   description = "Hostname of the API Management instance"
-  value       = azurerm_api_management.main.hostname
+  value       = azurerm_api_management.main.gateway_url
 }

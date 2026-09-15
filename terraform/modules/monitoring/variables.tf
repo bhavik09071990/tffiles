@@ -1,3 +1,7 @@
+# ---------------------------------------------------------------------------
+# Variables
+# ---------------------------------------------------------------------------
+
 variable "location" {
   description = "Azure region for monitoring resources"
   type        = string

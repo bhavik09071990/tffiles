@@ -18,17 +18,17 @@ module "acr_private_endpoint" {
   name                = "pep-acr-${var.acr_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  subnet_id          = var.private_endpoint_subnet_id
+  subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
     name                           = "psc-acr"
     private_connection_resource_id = var.acr_id
     is_manual_connection           = false
-    request_message               = null
+    request_message                = null
   }
 
   private_dns_zone_name = "privatelink.azurecr.io"
-  vnet_id              = var.vnet_id
+  vnet_id               = var.vnet_id
 
   tags = var.tags
 }
@@ -45,17 +45,17 @@ module "kv_private_endpoint" {
   name                = "pep-kv-${var.kv_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  subnet_id          = var.private_endpoint_subnet_id
+  subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
     name                           = "psc-kv"
     private_connection_resource_id = var.kv_id
     is_manual_connection           = false
-    request_message               = null
+    request_message                = null
   }
 
   private_dns_zone_name = "privatelink.vaultcore.azure.net"
-  vnet_id              = var.vnet_id
+  vnet_id               = var.vnet_id
 
   tags = var.tags
 }
@@ -70,13 +70,13 @@ resource "azurerm_private_endpoint" "apim" {
   name                = "pep-apim-${var.apim_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  subnet_id          = var.private_endpoint_subnet_id
+  subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
     name                           = "psc-apim"
     private_connection_resource_id = var.apim_id
     is_manual_connection           = false
-    request_message               = null
+    request_message                = null
   }
 
   tags = var.tags
@@ -89,7 +89,7 @@ resource "azurerm_private_dns_zone" "apim" {
 
 resource "azurerm_private_dns_zone_virtual_network_link" "apim" {
   name                  = "link-apim-${var.resource_group_name}"
-  resource_group_name    = var.resource_group_name
+  resource_group_name   = var.resource_group_name
   private_dns_zone_name = azurerm_private_dns_zone.apim.name
   virtual_network_id    = var.vnet_id
   registration_enabled  = false

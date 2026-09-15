@@ -25,14 +25,14 @@ variable "publisher_email" {
   default     = "platform@example.com"
 }
 
-variable "apim_sku" {
-  description = "APIM SKU"
+variable "apim_sku_name" {
+  description = "SKU for APIM (Developer_1, Standard_v2, Premium_v3)"
   type        = string
-  default     = "Consumption_0"
+  default     = "Developer_1"
 }
 
-variable "container_apps_subnet_id" {
-  description = "ID of the Container Apps subnet (APIM deployed here)"
+variable "apim_subnet_id" {
+  description = "Subnet ID for APIM VNet integration (hub Private Endpoint subnet)"
   type        = string
 }
 

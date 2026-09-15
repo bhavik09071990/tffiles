@@ -12,10 +12,13 @@ resource "azurerm_api_management" "main" {
   resource_group_name = var.resource_group_name
   publisher_name      = var.publisher_name
   publisher_email     = var.publisher_email
-  sku_name            = var.apim_sku
+  sku_name            = var.apim_sku_name
 
   virtual_network_type = "Internal"
-  subnet_id            = var.container_apps_subnet_id
+
+  virtual_network_configuration {
+    subnet_id = var.apim_subnet_id
+  }
 
   identity {
     type = "SystemAssigned"
@@ -64,31 +67,31 @@ resource "azurerm_api_management_logger" "main" {
 }
 
 resource "azurerm_api_management_diagnostic" "main" {
-  identifier         = "apim-diagnostic"
+  identifier          = "apim-diagnostic"
   resource_group_name = var.resource_group_name
   api_management_name = azurerm_api_management.main.name
-  enabled            = true
+  enabled             = true
 
   logger_id = azurerm_api_management_logger.main.id
 
   frontend {
     request {
-      body_bytes = 32
+      body_bytes     = 32
       headers_to_log = ["content-type", "accept"]
     }
     response {
-      body_bytes = 32
+      body_bytes     = 32
       headers_to_log = ["content-type"]
     }
   }
 
   backend {
     request {
-      body_bytes = 32
+      body_bytes     = 32
       headers_to_log = ["content-type"]
     }
     response {
-      body_bytes = 32
+      body_bytes     = 32
       headers_to_log = ["content-type"]
     }
   }

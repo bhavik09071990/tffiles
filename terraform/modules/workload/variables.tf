@@ -51,7 +51,7 @@ variable "dotnet_api_image" {
 variable "nextjs_min_replicas" {
   description = "Minimum replica count for Next.js Container App"
   type        = number
-  default     = 0  # scale-to-zero for dev; set to 1 for prod
+  default     = 0 # scale-to-zero for dev; set to 1 for prod
 }
 
 variable "nextjs_max_replicas" {
@@ -63,7 +63,7 @@ variable "nextjs_max_replicas" {
 variable "dotnet_api_min_replicas" {
   description = "Minimum replica count for .NET API Container App"
   type        = number
-  default     = 0  # scale-to-zero for dev; set to 1 for prod
+  default     = 0 # scale-to-zero for dev; set to 1 for prod
 }
 
 variable "dotnet_api_max_replicas" {

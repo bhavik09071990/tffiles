@@ -13,8 +13,8 @@ output "resource_group_name" {
 }
 
 output "virtual_network_id" {
-  description = "ID of the application VNet"
-  value       = module.network.virtual_network_id
+  description = "ID of the application VNet (spoke)"
+  value       = module.network.spoke_vnet_id
 }
 
 output "container_apps_environment_id" {
@@ -49,8 +49,8 @@ output "log_analytics_workspace_id" {
 
 output "application_insights_instrumentation_key" {
   description = "Application Insights instrumentation key"
-  value      = module.monitoring.application_insights_instrumentation_key
-  sensitive  = true
+  value       = module.monitoring.application_insights_instrumentation_key
+  sensitive   = true
 }
 
 output "application_insights_app_id" {
@@ -83,5 +83,5 @@ output "container_apps_user_assigned_identity_id" {
 
 output "container_apps_user_assigned_identity_principal_id" {
   description = "Principal ID of the user-assigned Managed Identity"
-  value      = module.identity.container_apps_user_assigned_identity_principal_id
+  value       = module.identity.container_apps_user_assigned_identity_principal_id
 }
